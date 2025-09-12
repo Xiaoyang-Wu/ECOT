@@ -2,7 +2,7 @@
 
 This repository contains the implementation code for the paper:
 
-**"Unified Conformalized Multiple Testing with Full Data Efficiency"**
+**"Unified Conformalized Multiple Testing with Full Data Efficiency"** by Yuyang Huo, Xiaoyang Wu, Haojie Ren and Changliang Zou.
 
 The code is organized into two main parts: **simulation** and **realdata**.
 
@@ -15,10 +15,10 @@ The code is organized into two main parts: **simulation** and **realdata**.
 
 ## Simulation
 
-- **`simulation/main_paper/`**  
+- **`simulation/Maintext/`**  
   Contains code to reproduce simulations presented in the main text of the paper.
 
-- **`simulation/supplementary/`**  
+- **`simulation/Supplementary/`**  
   Contains code to reproduce simulations presented in the supplementary materials.
 
 ---
@@ -26,15 +26,7 @@ The code is organized into two main parts: **simulation** and **realdata**.
 ## Real Data
 
 - **`realdata/`** folder contains code for five different datasets.  
-- Each dataset has its own subfolder (`dataset1`, `dataset2`, ..., `dataset5`) with scripts to reproduce the corresponding analyses.
-
----
-
-## Requirements
-
-- Python ≥ 3.8 (or R depending on implementation)  
-- Git LFS for large files: [https://git-lfs.github.com](https://git-lfs.github.com)  
-- Standard data science packages (numpy, pandas, scipy, etc.)
+- Each dataset has its own subfolder to reproduce the corresponding analyses.
 
 ---
 
