@@ -1,0 +1,2 @@
+realdata/creditcard/creditcard.csv filter=lfs diff=lfs merge=lfs -text
+realdata/covtype/covtype.csv filter=lfs diff=lfs merge=lfs -text
