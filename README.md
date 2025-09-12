@@ -15,7 +15,7 @@ The code is organized into two main parts: **simulation** and **realdata**.
 
 ## Simulation
 
-- **`simulation/Maintext/`**  
+- **`simulation/Main text/`**  
   Contains code to reproduce simulations presented in the main text of the paper.
 
 - **`simulation/Supplementary/`**  
