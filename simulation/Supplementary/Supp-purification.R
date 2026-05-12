@@ -4,7 +4,6 @@ library(randomForest)
 library(doParallel)
 library(e1071)
 library(isotree)
-library(dplyr)
 
 source("functions.R")
 
@@ -44,44 +43,44 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
     X1_train <- X1[1:(n1/2),]
     X1_cal <- X1[(n1/2+1):n1,]
     
-    m_clean <- ceiling(m/2)
+    m_pure <- ceiling(m/2)
     
     
     model1_IOF <- isolation.forest(X1_train)
     model0_new <- isolation.forest(rbind(X0, X_test))
     
     V_idf <- predict(model0_new, rbind(X0, X_test))
-    if(sum(V_idf==sort(V_idf)[n+m_clean])==1){
-      X0_clean <- rbind(X0, X_test)[which(V_idf<=sort(V_idf)[n+m_clean]), ]
+    if(sum(V_idf==sort(V_idf)[n+m_pure])==1){
+      X0_pure <- rbind(X0, X_test)[which(V_idf<=sort(V_idf)[n+m_pure]), ]
     }else{
-      X0_clean <- rbind(X0, X_test)[c(which(V_idf<sort(V_idf)[n+m_clean]), sample(which(V_idf==sort(V_idf)[n+m_clean]), n+m_clean-length(which(V_idf<sort(V_idf)[n+m_clean])))), ]
+      X0_pure <- rbind(X0, X_test)[c(which(V_idf<sort(V_idf)[n+m_pure]), sample(which(V_idf==sort(V_idf)[n+m_pure]), n+m_pure-length(which(V_idf<sort(V_idf)[n+m_pure])))), ]
     }
-    model0_new_clean <- isolation.forest(X0_clean)
+    model0_new_pure <- isolation.forest(X0_pure)
     
     s1_cal <- predict(model1_IOF, X1_cal)
     s0_new_cal1 <- predict(model1_IOF, X0)
     s1_test <- predict(model1_IOF, X_test)
     s0_new <- predict(model0_new, X_test)
     s0_new_cal <- predict(model0_new, X0)
-    s0_new_clean <- predict(model0_new_clean, X_test)
-    s0_new_cal_clean <- predict(model0_new_clean, X0)
+    s0_new_pure <- predict(model0_new_pure, X_test)
+    s0_new_cal_pure <- predict(model0_new_pure, X0)
     
     
     model_RF_new <- randomForest(y~., data = data.frame(x = rbind(X0, X_test, X1), y = factor(c(rep(0, n+m), rep(1, n1)))), ntree = 500)
     
     V_idf <- predict(model_RF_new, data.frame(x = rbind(X0, X_test)), type = 'prob')[, 2]
-    if(sum(V_idf==sort(V_idf)[n+m_clean])==1){
-      X0_clean <- rbind(X0, X_test)[which(V_idf<=sort(V_idf)[n+m_clean]), ]
+    if(sum(V_idf==sort(V_idf)[n+m_pure])==1){
+      X0_pure <- rbind(X0, X_test)[which(V_idf<=sort(V_idf)[n+m_pure]), ]
     }else{
-      X0_clean <- rbind(X0, X_test)[c(which(V_idf<sort(V_idf)[n+m_clean]), sample(which(V_idf==sort(V_idf)[n+m_clean]), n+m_clean-length(which(V_idf<sort(V_idf)[n+m_clean])))), ]
+      X0_pure <- rbind(X0, X_test)[c(which(V_idf<sort(V_idf)[n+m_pure]), sample(which(V_idf==sort(V_idf)[n+m_pure]), n+m_pure-length(which(V_idf<sort(V_idf)[n+m_pure])))), ]
     }
-    model_RF_new_clean <- randomForest(y~., data = data.frame(x = rbind(X0_clean, X1), y = factor(c(rep(0, n+m_clean), rep(1, n1)))), ntree = 500)
+    model_RF_new_pure <- randomForest(y~., data = data.frame(x = rbind(X0_pure, X1), y = factor(c(rep(0, n+m_pure), rep(1, n1)))), ntree = 500)
     
     
     Vn_cal <- predict(model_RF_new, data.frame(x = X0), type = 'prob')[, 2]
     Vn_test <- predict(model_RF_new, data.frame(x = X_test), type = 'prob')[, 2]
-    Vn_cal_clean <- predict(model_RF_new_clean, data.frame(x = X0), type = 'prob')[, 2]
-    Vn_test_clean <- predict(model_RF_new_clean, data.frame(x = X_test), type = 'prob')[, 2]
+    Vn_cal_pure <- predict(model_RF_new_pure, data.frame(x = X0), type = 'prob')[, 2]
+    Vn_test_pure <- predict(model_RF_new_pure, data.frame(x = X_test), type = 'prob')[, 2]
     
     
     pval_new <- sapply(Vn_test, function(x){(sum(x<=Vn_cal)+1)/(length(Vn_cal)+1)})
@@ -90,11 +89,11 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
     FDP_new <- sum(!rej_new%in%outlier)/max(length(rej_new), 1)
     data <- rbind(data, data.frame(FDP = FDP_new, POWER = power_new, method = 'ECOT-bi', n = nfull, sig = sig, alpha = alpha, pi0 = pi0))
     
-    pval_new_clean <- sapply(Vn_test_clean, function(x){(sum(x<=Vn_cal_clean)+1)/(length(Vn_cal_clean)+1)})
-    rej_new_clean <- BH(pval_new_clean, alpha)
-    power_new_clean <- sum(rej_new_clean%in%outlier)/length(outlier)
-    FDP_new_clean <- sum(!rej_new_clean%in%outlier)/max(length(rej_new_clean), 1)
-    data <- rbind(data, data.frame(FDP = FDP_new_clean, POWER = power_new_clean, method = 'ECOT-bi-pure', n = nfull, sig = sig, alpha = alpha, pi0 = pi0))
+    pval_new_pure <- sapply(Vn_test_pure, function(x){(sum(x<=Vn_cal_pure)+1)/(length(Vn_cal_pure)+1)})
+    rej_new_pure <- BH(pval_new_pure, alpha)
+    power_new_pure <- sum(rej_new_pure%in%outlier)/length(outlier)
+    FDP_new_pure <- sum(!rej_new_pure%in%outlier)/max(length(rej_new_pure), 1)
+    data <- rbind(data, data.frame(FDP = FDP_new_pure, POWER = power_new_pure, method = 'ECOT-bi-pure', n = nfull, sig = sig, alpha = alpha, pi0 = pi0))
     
     s0_sum <- sapply(s0_new_cal, function(x){sum(x<=s0_new_cal)})
     s1_sum <- sapply(s0_new_cal1, function(x){sum(x<=s1_cal)}) + 1
@@ -110,29 +109,23 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
     FDP_int_re <- sum(!rej_int_re%in%outlier)/max(length(rej_int_re), 1)
     data <- rbind(data, data.frame(FDP = FDP_int_re, POWER = power_int_re, method = 'ECOT-oc', n = nfull, sig = sig, alpha = alpha, pi0 = pi0))
     
-    s0_sum_clean <- sapply(s0_new_cal_clean, function(x){sum(x<=s0_new_cal_clean)})
+    s0_sum_pure <- sapply(s0_new_cal_pure, function(x){sum(x<=s0_new_cal_pure)})
     s1_sum <- sapply(s0_new_cal1, function(x){sum(x<=s1_cal)}) + 1
-    pval_int_re1_clean <- rep(0, m)
+    pval_int_re1_pure <- rep(0, m)
     for (i in 1:m) {
-      u0 <- c(s0_sum_clean + ifelse(s0_new_clean[i]>=s0_new_cal_clean, 1, 0), sum(s0_new_clean[i]<=s0_new_cal_clean) + 1) / (n+1)
+      u0 <- c(s0_sum_pure + ifelse(s0_new_pure[i]>=s0_new_cal_pure, 1, 0), sum(s0_new_pure[i]<=s0_new_cal_pure) + 1) / (n+1)
       u1 <- c(s1_sum, sum(s1_test[i]<=s1_cal) + 1) / (n1/2+1)
       r <- u0/u1
-      pval_int_re1_clean[i] <- sum(r[n+1]>=r)/(n+1)
+      pval_int_re1_pure[i] <- sum(r[n+1]>=r)/(n+1)
     }
-    rej_int_re_clean <- BH(pval_int_re1_clean, alpha)
-    power_int_re_clean <- sum(rej_int_re_clean%in%outlier)/length(outlier)
-    FDP_int_re_clean <- sum(!rej_int_re_clean%in%outlier)/max(length(rej_int_re_clean), 1)
-    data <- rbind(data, data.frame(FDP = FDP_int_re_clean, POWER = power_int_re_clean, method = 'ECOT-oc-pure', n = nfull, sig = sig, alpha = alpha, pi0 = pi0))
+    rej_int_re_pure <- BH(pval_int_re1_pure, alpha)
+    power_int_re_pure <- sum(rej_int_re_pure%in%outlier)/length(outlier)
+    FDP_int_re_pure <- sum(!rej_int_re_pure%in%outlier)/max(length(rej_int_re_pure), 1)
+    data <- rbind(data, data.frame(FDP = FDP_int_re_pure, POWER = power_int_re_pure, method = 'ECOT-oc-pure', n = nfull, sig = sig, alpha = alpha, pi0 = pi0))
   }
   
   return(data)
 }
 stopCluster(cl)
 
-save(Result, file = 'CleanComp.RData')
-
-
-pp <- Result%>%
-  group_by(method, alpha, n, sig, pi0)%>%
-  dplyr::summarize(FDR = mean(FDP), power = mean(POWER), sdFDR = sd(FDP)/sqrt(nr), sdpower = sd(POWER)/sqrt(nr))
-pp
+save(Result, file = 'Purification.RData')
