@@ -45,7 +45,7 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
   X_test <- rbind(data_out_use[1:(pi1*m), 1:d], data_clean_use[(n+1):(n+pi0*m), 1:d])
   outlier <- 1:(pi1*m)
   X1 <- data_out_use[(pi1*m+1):(pi1*m+n1), 1:d]
-  
+    
   X0_train <- X0[1:(n/2),]
   X0_cal <- X0[(n/2+1):n,]
   X1_train <- X1[1:(n1/2),]
@@ -81,11 +81,7 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
   
   t_ecot <- 0
   t_ecot_clean <- 0
-  ecot_model_list <- list()
   ecot_clean_model_list <- list()
-  pval_mat <- matrix(NA, nrow = m, ncol = nrow(algoarray))
-  Vncal_mat <- matrix(NA, nrow = n, ncol = nrow(algoarray))
-  Vntest_mat <- matrix(NA, nrow = m, ncol = nrow(algoarray))
   pval_clean_mat <- matrix(NA, nrow = m, ncol = nrow(algoarray))
   Vncal_clean_mat <- matrix(NA, nrow = n, ncol = nrow(algoarray))
   Vntest_clean_mat <- matrix(NA, nrow = m, ncol = nrow(algoarray))
@@ -93,10 +89,6 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
     if (algoarray$algotype[i]=='RF'){
       t_before <- proc.time()
       ecot_temp_model <- randomForest(y~., data = data.frame(x = rbind(X0, X_test, X1), y = factor(c(rep(0, n+m), rep(1, n1)))), ntree = algoarray$param[i])
-      ecot_model_list[[i]] <- list(model = ecot_temp_model, type = algoarray$algotype[i], param = algoarray$param[i])
-      Vncal_mat[, i] <- predict(ecot_temp_model, data.frame(x = X0), type = 'prob')[, 2]
-      Vntest_mat[ ,i] <- predict(ecot_temp_model, data.frame(x = X_test), type = 'prob')[, 2]
-      pval_mat[, i] <- sapply(Vntest_mat[ ,i], function(x){(sum(x<=Vncal_mat[, i])+1)/(length(Vncal_mat[, i])+1)})
       t_after <- proc.time()
       t_ecot <- t_ecot + (t_after - t_before)['elapsed']
       
@@ -119,10 +111,6 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
     if (algoarray$algotype[i]=='SVM'){
       t_before <- proc.time()
       ecot_temp_model <- svm(y~., data = data.frame(x = rbind(X0, X_test, X1), y = factor(c(rep(0, n+m), rep(1, n1)))), probability = T, nu = algoarray$param[i])
-      ecot_model_list[[i]] <- list(model = ecot_temp_model, type = algoarray$algotype[i], param = algoarray$param[i])
-      Vncal_mat[, i] <- attr(predict(ecot_temp_model, data.frame(x = X0), probability = T), 'probabilities')[, 2]
-      Vntest_mat[, i] <- attr(predict(ecot_temp_model, data.frame(x = X_test), probability = T), 'probabilities')[, 2]
-      pval_mat[, i] <- sapply(Vntest_mat[ ,i], function(x){(sum(x<=Vncal_mat[, i])+1)/(length(Vncal_mat[, i])+1)})
       t_after <- proc.time()
       t_ecot_clean <- t_ecot_clean + (t_after - t_before)['elapsed']
       
@@ -164,27 +152,6 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
   Vn_test <- predict(model_RF_new, data.frame(x = X_test), type = 'prob')[, 2]
   Vn_cal_clean <- predict(model_RF_new_clean, data.frame(x = X0), type = 'prob')[, 2]
   Vn_test_clean <- predict(model_RF_new_clean, data.frame(x = X_test), type = 'prob')[, 2]
-  
-  
-  pval_BIN <- sapply(VB_test, function(x){(sum(x<=VB_cal)+1)/(length(VB_cal)+1)})
-  rej_BIN <- BH(pval_BIN, alpha)
-  power_BIN <- sum(rej_BIN%in%outlier)/length(outlier)
-  FDP_BIN <- sum(!rej_BIN%in%outlier)/max(length(rej_BIN), 1)
-  data <- rbind(data, data.frame(t = 0, FDP = FDP_BIN, POWER = power_BIN, method = 'CP-bi', n = nfull, alpha = alpha))
-  
-  
-  pval_new <- sapply(Vn_test, function(x){(sum(x<=Vn_cal)+1)/(length(Vn_cal)+1)})*pi0l
-  rej_new <- BH(pval_new, alpha)
-  power_new <- sum(rej_new%in%outlier)/length(outlier)
-  FDP_new <- sum(!rej_new%in%outlier)/max(length(rej_new), 1)
-  data <- rbind(data, data.frame(t = 0, FDP = FDP_new, POWER = power_new, method = 'ECOT-bi', n = nfull, alpha = alpha))
-  
-  
-  pval_new_clean <- sapply(Vn_test_clean, function(x){(sum(x<=Vn_cal_clean)+1)/(length(Vn_cal_clean)+1)})*pi0l
-  rej_new_clean <- BH(pval_new_clean, alpha)
-  power_new_clean <- sum(rej_new_clean%in%outlier)/length(outlier)
-  FDP_new_clean <- sum(!rej_new_clean%in%outlier)/max(length(rej_new_clean), 1)
-  data <- rbind(data, data.frame(t = 0, FDP = FDP_new_clean, POWER = power_new_clean, method = 'ECOT-bi-clean', n = nfull, alpha = alpha))
   
   
   ###---OCS model selection---###
@@ -231,79 +198,10 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
   power_B_sel <- sum(rej_B_sel%in%outlier)/length(outlier)
   FDP_B_sel <- sum(!rej_B_sel%in%outlier)/max(length(rej_B_sel), 1)
   t_ocs <- t_ocs + (t_after - t_before)["elapsed"]
-  data <- rbind(data, data.frame(t = t_ocs, FDP = FDP_B_sel, POWER = power_B_sel, method = 'OCS-ms', n = nfull, alpha = alpha))
+  data <- rbind(data, data.frame(t = t_ocs, FDP = FDP_B_sel, POWER = power_B_sel, method = 'OptCS-MSel', n = nfull, alpha = alpha))
   
   
   ###---ECOT method selection---###
-  rejnum_sel <- rep(NA, m)
-  pval_sel <- rep(NA, m)
-  ind_vec <- rep(NA, m)
-  t_before <- proc.time()
-  for (j in 1:m){
-    rejnum_each <- rep(NA, nrow(algoarray))
-    rejnum_each_mod <- rep(NA, nrow(algoarray))
-    
-    for (k in 1:nrow(algoarray)) {
-      Vn_cal_sel <- c(Vncal_mat[, k], Vntest_mat[j, k])
-      rem_bi <- which.max(Vn_cal_sel)
-      Vn_cal_sel <- Vn_cal_sel[-rem_bi]
-      Vn_test_sel <- Vntest_mat[-j, k]
-      
-      pval_new_sel <- sapply(Vn_test_sel, function(x){(sum(x<=Vn_cal_sel)+1)/(length(Vn_cal_sel)+1)})
-      if(j==1){
-        pval_new_sel <- c(0, pval_new_sel)
-      }else if(j==m){
-        pval_new_sel <- c(pval_new_sel, 0)
-      }else {
-        pval_new_sel <- c(pval_new_sel[1:(j-1)], 0, pval_new_sel[j:(m-1)])
-      }
-      pval_new_sel_mod <- sapply(pval_new_sel, function(x){x-1/(length(Vn_cal_sel)+1)})
-      pval_new_sel <- pval_new_sel*pi0l
-      pval_new_sel_mod <- pval_new_sel_mod*pi0l
-      pval_new_sel_mod[j] <- 0
-      rejnum_each[k] <- length(BH(pval_new_sel, alpha))
-      rejnum_each_mod[k] <- length(BH(pval_new_sel_mod, alpha))
-    }
-    
-    if(sum(rejnum_each==1)<nrow(algoarray)){
-      if(sum(rejnum_each==max(rejnum_each))==1){
-        ind <- which(rejnum_each==max(rejnum_each))
-        rejnum_sel[j] <- max(rejnum_each)
-      }else {
-        if(sum(rejnum_each_mod==max(rejnum_each_mod))==1){
-          ind <- which(rejnum_each_mod==max(rejnum_each_mod))
-        }else {
-          ind <- sample(which(rejnum_each_mod==max(rejnum_each_mod)), 1)
-        }
-        rejnum_sel[j] <- max(rejnum_each_mod)
-      }
-    }else {
-      if(sum(rejnum_each_mod==max(rejnum_each_mod))==1){
-        ind <- which(rejnum_each_mod==max(rejnum_each_mod))
-      }else {
-        ind <- sample(which(rejnum_each_mod==max(rejnum_each_mod)), 1)
-      }
-      rejnum_sel[j] <- max(rejnum_each_mod)
-    }
-    
-    ind_vec[j] <- ind
-    pval_sel[j] <- pval_mat[j, ind]*pi0l
-  }
-  rej_sel_init <- which(pval_sel<=alpha*rejnum_sel/m)
-  if(length(rej_sel_init)>=max(rejnum_sel)){
-    rej_sel <- rej_sel_init
-  }else {
-    rej_sel <- rej_sel_init[BH(runif(length(rej_sel_init))*rejnum_sel[rej_sel_init]/length(rej_sel_init), 1)]
-  }
-  rej_sel <- BH(pval_sel, alpha)
-  t_after <- proc.time()
-  t_ecot <- t_ecot + (t_after - t_before)["elapsed"]
-  power_sel <- sum(rej_sel%in%outlier)/length(outlier)
-  FDP_sel <- sum(!rej_sel%in%outlier)/max(length(rej_sel), 1)
-  data <- rbind(data, data.frame(t = t_ecot, FDP = FDP_sel, POWER = power_sel, method = 'ECOT-as', n = nfull, alpha = alpha))
-  
-  
-  ###---ECOT-clean method selection---###
   rejnum_sel_clean <- rep(NA, m)
   pval_sel_clean <- rep(NA, m)
   ind_vec_clean <- rep(NA, m)
@@ -315,7 +213,7 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
     for (k in 1:nrow(algoarray)) {
       Vn_clean_cal_sel <- c(Vncal_clean_mat[, k], Vntest_clean_mat[j, k])
       rem_bi_clean <- which.max(Vn_clean_cal_sel)
-      Vn_clean_cal_sel <- Vn_clean_cal_sel[-rem_bi]
+      Vn_clean_cal_sel <- Vn_clean_cal_sel[-rem_bi_clean]
       Vn_clean_test_sel <- Vntest_clean_mat[-j, k]
       
       pval_clean_new_sel <- sapply(Vn_clean_test_sel, function(x){(sum(x<=Vn_clean_cal_sel)+1)/(length(Vn_clean_cal_sel)+1)})
@@ -356,7 +254,7 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
     }
     
     ind_vec_clean[j] <- ind_clean
-    pval_sel_clean[j] <- pval_clean_mat[j, ind]*pi0l
+    pval_sel_clean[j] <- pval_clean_mat[j, ind_clean]*pi0l
   }
   rej_sel_clean_init <- which(pval_sel_clean<=alpha*rejnum_sel_clean/m)
   if(length(rej_sel_clean_init)>=max(rejnum_sel_clean)){
@@ -369,7 +267,67 @@ Result <- foreach(iter = 1:nr, .combine = "rbind", .packages = c("MASS", "isotre
   t_ecot_clean <- t_ecot + t_ecot_clean + (t_after - t_before)["elapsed"]
   power_sel_clean <- sum(rej_sel_clean%in%outlier)/length(outlier)
   FDP_sel_clean <- sum(!rej_sel_clean%in%outlier)/max(length(rej_sel_clean), 1)
-  data <- rbind(data, data.frame(t = t_ecot_clean, FDP = FDP_sel_clean, POWER = power_sel_clean, method = 'ECOT-as-clean', n = nfull, alpha = alpha))
+  data <- rbind(data, data.frame(t = t_ecot_clean, FDP = FDP_sel_clean, POWER = power_sel_clean, method = 'ECOT-as', n = nfull, alpha = alpha))
+  
+  
+  ###OCS-full###
+  pval_ocsfull <- rep(NA, m)
+  ind_full_vec <- rep(NA, m)
+  Vfullcal_mat <- matrix(NA, nrow = nfull, ncol = nrow(algoarray))
+  Vfulltest_mat <- matrix(NA, nrow = m, ncol = nrow(algoarray))
+  t_before <- proc.time()
+  for (j in 1:(nfull+m)) {
+    for (i in 1:nrow(algoarray)) {
+      if (algoarray$algotype[i]=='RF'){
+        ocsfull_temp_model <- randomForest(y~., data = data.frame(x = rbind(X0, X1, X_test)[-j, ], y = factor(c(rep(0, n), rep(1, n1), rep(0, m))[-j])), ntree = algoarray$param[i])
+        if (j<=nfull) {
+          Vfullcal_mat[j, i] <- predict(ocsfull_temp_model, data.frame(x = rbind(X0, X1, X_test)[j, ]), type = 'prob')[2] - c(rep(0, n), rep(1, n1), rep(0, m))[j]*1000
+        } else {
+          Vfulltest_mat[j-nfull, i] <- predict(ocsfull_temp_model, data.frame(x = rbind(X0, X1, X_test)[j, ]), type = 'prob')[2]
+        }
+      }
+      if (algoarray$algotype[i]=='SVM'){
+        ocsfull_temp_model <- svm(y~., data = data.frame(x = rbind(X0, X1, X_test)[-j, ], y = factor(c(rep(0, n), rep(1, n1), rep(0, m))[-j])), probability = T, nu = algoarray$param[i])
+        if (j<=nfull) {
+          Vfullcal_mat[j, i] <- attr(predict(ocsfull_temp_model, data.frame(x = rbind(X0, X1, X_test)[j, ]), probability = T), 'probabilities')[2] - c(rep(0, n), rep(1, n1), rep(0, m))[j]*1000
+        } else {
+          Vfulltest_mat[j-nfull, i] <- attr(predict(ocsfull_temp_model, data.frame(x = rbind(X0, X1, X_test)[j, ]), probability = T), 'probabilities')[2]
+        }
+      }
+    }
+  }
+  for (j in 1:m) {
+    rejnum_full_each <- rep(NA, nrow(algoarray))
+    
+    for (k in 1:nrow(algoarray)) {
+      Vfull_cal_sel <- c(Vfullcal_mat[, k], Vfulltest_mat[j, k])
+      Vfull_test_sel <- Vfulltest_mat[-j, k]
+      pval_full_sel_aux <- sapply(Vfull_test_sel, function(x){sum(x<=Vfull_cal_sel)/length(Vfull_cal_sel)})
+      if(j==1){
+        pval_full_sel_aux <- c(0, pval_full_sel_aux)
+      }else if(j==m){
+        pval_full_sel_aux <- c(pval_full_sel_aux, 0)
+      }else {
+        pval_full_sel_aux <- c(pval_full_sel_aux[1:(j-1)], 0, pval_full_sel_aux[j:(m-1)])
+      }
+      rejnum_full_each[k] <- length(BH(pval_full_sel_aux, alpha))
+    }
+    if(sum(rejnum_full_each==max(rejnum_full_each))==1){
+      ind_full <- which(rejnum_full_each==max(rejnum_full_each))
+    }else {
+      ind_full <- sample(which(rejnum_full_each==max(rejnum_full_each)), 1)
+    }
+    
+    ind_full_vec[j] <- ind_full
+    pval_ocsfull[j] <- (sum(Vfulltest_mat[j, ind_full]<=Vfullcal_mat[, ind_full])+1)/(length(Vfullcal_mat[, ind_full])+1)
+  }
+  rej_ocsfull <- BH(pval_ocsfull, alpha)
+  t_after <- proc.time()
+  power_ocsfull <- sum(rej_ocsfull%in%outlier)/length(outlier)
+  FDP_ocsfull <- sum(!rej_ocsfull%in%outlier)/max(length(rej_ocsfull), 1)
+  t_ocs_full <- (t_after - t_before)["elapsed"]
+  data <- rbind(data, data.frame(t = t_ocs_full, FDP = FDP_ocsfull, POWER = power_ocsfull, method = 'OptCS-Full-MSel', n = nfull, alpha = alpha))
+  
   
   
   return(data)
