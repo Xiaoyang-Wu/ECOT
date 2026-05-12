@@ -117,6 +117,6 @@ Result <- rbind(Result, Result0)
 
 
 
-save(Result, file = 'NPm.RData')
+save(Result, file = 'NPmn.RData')
 
 
